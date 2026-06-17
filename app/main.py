@@ -64,6 +64,11 @@ preview_dir = Path(__file__).parent.parent
 if (preview_dir / "preview.html").exists():
     app.mount("/preview", StaticFiles(directory=preview_dir, html=True), name="preview")
 
+# Serve UI dashboard
+static_dir = Path(__file__).parent / "static"
+if (static_dir / "dashboard.html").exists():
+    app.mount("/ui", StaticFiles(directory=static_dir, html=True), name="ui")
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # API ENDPOINTS
@@ -372,7 +377,21 @@ async def run_pipeline(job_id: str, request: GenerateRequest):
         # Validate hook cadence
         if not director_cut.hook_cadence or not director_cut.hook_cadence.open_loops:
             print(f"[Brain] Warning: Hook cadence missing. Using fallback.")
-            # Could add fallback hook generation here
+        
+        # ── Quality Validation ──
+        from app.quality_validator import QualityValidator, suggest_fixes
+        validator = QualityValidator(director_cut)
+        validation = validator.validate()
+        
+        print(f"[Quality] Score: {validation.score:.2f}/1.0 — {'PASS' if validation.passed else 'FAIL'}")
+        if validation.violations:
+            for v in validation.violations:
+                print(f"  [{v.severity.upper()}] {v.rule}: {v.message}")
+            fixes = suggest_fixes(validation.violations)
+            if fixes:
+                print(f"[Quality] Suggestions: {fixes[0]}")
+        
+        self.metrics = validation.metrics
         
         _update_job(job_id, JobStatus.brain_active, 15.0, directors_cut=director_cut)
         

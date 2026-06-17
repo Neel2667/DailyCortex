@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORTEX RENDER — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #0a0e27;
+    --primary: #14b8a6;
+    --secondary: #f472b6;
+    --tertiary: #818cf8;
+    --accent: #fbbf24;
+    --text: #f4f4f5;
+    --text-dim: #a1a1aa;
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: #030610; color: var(--text); font-family: 'Inter', sans-serif; }
+  
+  .page { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  
+  .header { margin-bottom: 48px; }
+  .eyebrow { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+  .eyebrow::before { content: ''; width: 24px; height: 1px; background: var(--primary); }
+  .header h1 { font-family: 'Space Grotesk', sans-serif; font-size: 38px; font-weight: 500; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 8px; }
+  .header h1 .accent { color: var(--primary); font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; }
+  .header p { font-size: 15px; color: var(--text-dim); line-height: 1.55; max-width: 600px; }
+  
+  .panel { background: var(--void); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 32px; margin-bottom: 24px; }
+  .panel-title { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 500; margin-bottom: 20px; letter-spacing: -0.01em; }
+  
+  .form-group { margin-bottom: 20px; }
+  .form-label { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; display: block; }
+  .form-input { width: 100%; padding: 14px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 15px; outline: none; transition: all 0.3s ease; }
+  .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20,184,166,0.1); }
+  .form-input::placeholder { color: var(--text-dim); opacity: 0.6; }
+  
+  .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; background: var(--primary); border: none; border-radius: 10px; color: var(--void); font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; transition: all 0.3s ease; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(20,184,166,0.3); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: var(--text); }
+  .btn-secondary:hover { border-color: var(--primary); color: var(--primary); box-shadow: none; }
+  
+  .progress-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--tertiary)); border-radius: 999px; width: 0%; transition: width 0.5s var(--ease-spring); }
+  .progress-text { font-family: 'Space Grotesk', sans-serif; font-size: 12px; color: var(--text-dim); letter-spacing: 0.05em; }
+  
+  .status-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; }
+  .status-queued { background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid rgba(255,255,255,0.08); }
+  .status-running { background: rgba(20,184,166,0.1); color: var(--primary); border: 1px solid rgba(20,184,166,0.2); animation: pulse 2s ease-in-out infinite; }
+  .status-completed { background: rgba(20,184,166,0.1); color: var(--primary); border: 1px solid rgba(20,184,166,0.2); }
+  .status-failed { background: rgba(244,114,182,0.1); color: var(--secondary); border: 1px solid rgba(244,114,182,0.2); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  
+  .scene-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 20px; margin-bottom: 12px; transition: all 0.3s ease; }
+  .scene-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-2px); }
+  .scene-id { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; }
+  .scene-title { font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+  .scene-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-dim); }
+  .scene-meta span { display: flex; align-items: center; gap: 6px; }
+  .scene-tag { padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+  .tag-tease { background: rgba(20,184,166,0.1); color: var(--primary); border: 1px solid rgba(20,184,166,0.2); }
+  .tag-escalation { background: rgba(251,191,36,0.1); color: var(--accent); border: 1px solid rgba(251,191,36,0.2); }
+  .tag-payoff { background: rgba(244,114,182,0.1); color: var(--secondary); border: 1px solid rgba(244,114,182,0.2); }
+  .tag-rest { background: rgba(255,255,255,0.03); color: var(--text-dim); border: 1px solid rgba(255,255,255,0.08); }
+  .tag-callback { background: rgba(129,140,248,0.1); color: var(--tertiary); border: 1px solid rgba(129,140,248,0.2); }
+  
+  .quality-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .quality-bar .label { font-family: 'Space Grotesk', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; color: var(--text-dim); text-transform: uppercase; width: 120px; }
+  .quality-bar .track { flex: 1; height: 4px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden; }
+  .quality-bar .fill { height: 100%; border-radius: 999px; transition: width 0.8s var(--ease-spring); }
+  .quality-bar .value { font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 500; width: 40px; text-align: right; }
+  
+  .hidden { display: none !important; }
+  .fade-in { animation: fadeIn 0.6s var(--ease-spring) forwards; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .error-box { background: rgba(244,114,182,0.05); border: 1px solid rgba(244,114,182,0.2); border-radius: 12px; padding: 20px; color: var(--secondary); font-size: 13px; line-height: 1.6; }
+  .success-box { background: rgba(20,184,166,0.05); border: 1px solid rgba(20,184,166,0.2); border-radius: 12px; padding: 20px; color: var(--primary); font-size: 13px; line-height: 1.6; }
+  
+  @media (max-width: 768px) { .page { padding: 24px 16px; } .panel { padding: 20px; } .header h1 { font-size: 28px; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header">
+    <div class="eyebrow">Generative Cinematic Engine</div>
+    <h1>CORTEX <span class="accent">RENDER</span></h1>
+    <p>Automated 8–10 minute brain hack documentaries. No templates. No dead frames. Pure generative motion.</p>
+  </div>
+
+  <!-- Input Panel -->
+  <div class="panel" id="input-panel">
+    <div class="panel-title">Generate New Video</div>
+    <div class="form-group">
+      <label class="form-label">Topic / Brain Hack</label>
+      <input type="text" class="form-input" id="topic-input" placeholder="e.g., Why You Procrastinate — And the 2-Minute Fix" value="Why You Procrastinate">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Target Duration</label>
+      <input type="text" class="form-input" id="duration-input" placeholder="9:00 (540 seconds)" value="540">
+    </div>
+    <button class="btn" id="generate-btn" onclick="generateVideo()">
+      <span>▶</span> Generate Director's Cut
+    </button>
+  </div>
+
+  <!-- Progress Panel -->
+  <div class="panel hidden" id="progress-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div class="panel-title">Generation Progress</div>
+      <div class="status-badge status-queued" id="status-badge">QUEUED</div>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-bar"></div>
+    </div>
+    <div class="progress-text" id="progress-text">Waiting to start...</div>
+  </div>
+
+  <!-- Quality Report -->
+  <div class="panel hidden" id="quality-panel">
+    <div class="panel-title">Quality Validation</div>
+    <div class="quality-bar">
+      <div class="label">Overall</div>
+      <div class="track"><div class="fill" id="quality-overall" style="width:0%; background: var(--primary);"></div></div>
+      <div class="value" id="quality-overall-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">Hook Cadence</div>
+      <div class="track"><div class="fill" id="quality-hook" style="width:0%; background: var(--accent);"></div></div>
+      <div class="value" id="quality-hook-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">Scene Density</div>
+      <div class="track"><div class="fill" id="quality-density" style="width:0%; background: var(--tertiary);"></div></div>
+      <div class="value" id="quality-density-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">No-Repeat</div>
+      <div class="track"><div class="fill" id="quality-repeat" style="width:0%; background: var(--secondary);"></div></div>
+      <div class="value" id="quality-repeat-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">Intensity</div>
+      <div class="track"><div class="fill" id="quality-intensity" style="width:0%; background: var(--primary);"></div></div>
+      <div class="value" id="quality-intensity-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">Color</div>
+      <div class="track"><div class="fill" id="quality-color" style="width:0%; background: var(--accent);"></div></div>
+      <div class="value" id="quality-color-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">Text Motion</div>
+      <div class="track"><div class="fill" id="quality-text" style="width:0%; background: var(--tertiary);"></div></div>
+      <div class="value" id="quality-text-val">0%</div>
+    </div>
+    <div class="quality-bar">
+      <div class="label">Beat Sync</div>
+      <div class="track"><div class="fill" id="quality-beat" style="width:0%; background: var(--secondary);"></div></div>
+      <div class="value" id="quality-beat-val">0%</div>
+    </div>
+  </div>
+
+  <!-- Director's Cut Preview -->
+  <div class="panel hidden" id="directors-cut-panel">
+    <div class="panel-title">Director's Cut</div>
+    <div id="directors-cut-content"></div>
+  </div>
+
+  <!-- Download -->
+  <div class="panel hidden" id="download-panel">
+    <div class="panel-title">Download</div>
+    <div class="success-box">
+      <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; margin-bottom: 8px; font-size: 16px;">✓ Video Generation Complete</div>
+      <div id="download-info">Your video is ready for download.</div>
+    </div>
+    <div style="margin-top: 16px;">
+      <a class="btn" id="download-btn" href="#" download>⬇ Download MP4</a>
+      <button class="btn btn-secondary" onclick="reset()" style="margin-left: 12px;">Generate Another</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="panel hidden" id="error-panel">
+    <div class="panel-title">Error</div>
+    <div class="error-box" id="error-content"></div>
+    <button class="btn btn-secondary" onclick="reset()" style="margin-top: 16px;">Try Again</button>
+  </div>
+</div>
+
+<script>
+  let currentJobId = null;
+  let pollInterval = null;
+
+  async function generateVideo() {
+    const topic = document.getElementById('topic-input').value.trim();
+    const duration = parseInt(document.getElementById('duration-input').value) || 540;
+    
+    if (!topic) {
+      alert('Please enter a topic');
+      return;
+    }
+
+    document.getElementById('input-panel').classList.add('hidden');
+    document.getElementById('progress-panel').classList.remove('hidden');
+    document.getElementById('progress-panel').classList.add('fade-in');
+    document.getElementById('generate-btn').disabled = true;
+
+    try {
+      const resp = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, target_duration: duration }),
+      });
+      
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const job = await resp.json();
+      currentJobId = job.job_id;
+      
+      startPolling();
+    } catch (err) {
+      showError('Failed to start generation: ' + err.message);
+    }
+  }
+
+  function startPolling() {
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(pollJob, 2000);
+    pollJob(); // immediate first poll
+  }
+
+  async function pollJob() {
+    if (!currentJobId) return;
+    
+    try {
+      const resp = await fetch(`/jobs/${currentJobId}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const job = await resp.json();
+      
+      updateProgress(job);
+      
+      if (job.status === 'completed') {
+        clearInterval(pollInterval);
+        showDownload(job);
+      } else if (job.status === 'failed') {
+        clearInterval(pollInterval);
+        showError(job.error || 'Generation failed');
+      }
+      
+      // If Director's Cut is available, show preview
+      if (job.directors_cut && !document.getElementById('directors-cut-panel').classList.contains('hidden')) {
+        // Already showing
+      } else if (job.directors_cut) {
+        showDirectorsCut(job.directors_cut);
+      }
+      
+    } catch (err) {
+      console.error('Poll error:', err);
+    }
+  }
+
+  function updateProgress(job) {
+    const bar = document.getElementById('progress-bar');
+    const text = document.getElementById('progress-text');
+    const badge = document.getElementById('status-badge');
+    
+    bar.style.width = job.progress_percent + '%';
+    text.textContent = `${job.status.replace(/_/g, ' ').toUpperCase()} — ${job.progress_percent.toFixed(1)}%`;
+    
+    badge.className = 'status-badge';
+    if (job.status === 'completed') badge.classList.add('status-completed');
+    else if (job.status === 'failed') badge.classList.add('status-failed');
+    else if (job.status === 'queued') badge.classList.add('status-queued');
+    else badge.classList.add('status-running');
+    
+    badge.textContent = job.status.replace(/_/g, ' ').toUpperCase();
+  }
+
+  function showDirectorsCut(dc) {
+    const panel = document.getElementById('directors-cut-panel');
+    panel.classList.remove('hidden');
+    panel.classList.add('fade-in');
+    
+    const content = document.getElementById('directors-cut-content');
+    
+    let html = `<div style="margin-bottom: 24px; color: var(--text-dim); font-size: 13px;">
+      <strong style="color: var(--text);">${dc.title}</strong> • ${dc.target_duration_sec}s • ${dc.scenes?.length || 0} scenes
+      ${dc.mood_arc ? '• Mood: ' + dc.mood_arc.join(' → ') : ''}
+    </div>`;
+    
+    if (dc.hook_cadence) {
+      html += `<div style="margin-bottom: 20px; padding: 16px; background: rgba(20,184,166,0.03); border: 1px solid rgba(20,184,166,0.1); border-radius: 10px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: var(--primary); margin-bottom: 8px; font-weight: 500; font-family: 'Space Grotesk', sans-serif;">Hook Cadence</div>
+        <div style="font-size: 13px; color: var(--text-dim);">
+          ${dc.hook_cadence.open_loops?.length || 0} open loops • 
+          Callback: ${dc.hook_cadence.callback_reference ? '✓' : '✗'}
+        </div>
+      </div>`;
+    }
+    
+    if (dc.scenes) {
+      dc.scenes.forEach((scene, i) => {
+        const tagClass = {
+          'tease': 'tag-tease',
+          'escalation': 'tag-escalation',
+          'payoff': 'tag-payoff',
+          'rest': 'tag-rest',
+          'callback': 'tag-callback',
+          'bridge': 'tag-rest',
+        }[scene.hook_role] || 'tag-rest';
+        
+        html += `<div class="scene-card">
+          <div class="scene-id">${scene.scene_id} — ${scene.start_sec.toFixed(0)}s • ${scene.duration_sec.toFixed(0)}s</div>
+          <div class="scene-title">${scene.narration?.substring(0, 80)}${scene.narration?.length > 80 ? '...' : ''}</div>
+          <div class="scene-meta">
+            <span class="scene-tag ${tagClass}">${scene.hook_role}</span>
+            <span>Intensity: ${(scene.visual_intensity * 100).toFixed(0)}%</span>
+            <span>Mood: ${scene.mood}</span>
+            <span>Pacing: ${scene.pacing}</span>
+            <span>Layout: ${scene.layout_family}</span>
+            <span>Grade: ${scene.color_grade}</span>
+            <span>Keyframes: ${scene.keyframes?.length || 0}</span>
+          </div>
+        </div>`;
+      });
+    }
+    
+    content.innerHTML = html;
+  }
+
+  function showDownload(job) {
+    document.getElementById('download-panel').classList.remove('hidden');
+    document.getElementById('download-panel').classList.add('fade-in');
+    document.getElementById('download-btn').href = `/download/${currentJobId}`;
+    document.getElementById('download-info').textContent = 
+      `Job ${currentJobId} — ${job.topic} — ${job.target_duration}s`;
+  }
+
+  function showError(msg) {
+    document.getElementById('error-panel').classList.remove('hidden');
+    document.getElementById('error-panel').classList.add('fade-in');
+    document.getElementById('error-content').textContent = msg;
+    document.getElementById('progress-panel').classList.add('hidden');
+  }
+
+  function reset() {
+    currentJobId = null;
+    if (pollInterval) clearInterval(pollInterval);
+    
+    document.getElementById('input-panel').classList.remove('hidden');
+    document.getElementById('progress-panel').classList.add('hidden');
+    document.getElementById('quality-panel').classList.add('hidden');
+    document.getElementById('directors-cut-panel').classList.add('hidden');
+    document.getElementById('download-panel').classList.add('hidden');
+    document.getElementById('error-panel').classList.add('hidden');
+    document.getElementById('generate-btn').disabled = false;
+    
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-text').textContent = 'Waiting to start...';
+  }
+
+  // Check for existing jobs on load (for debugging)
+  async function checkHealth() {
+    try {
+      const resp = await fetch('/health');
+      if (resp.ok) {
+        const data = await resp.json();
+        console.log('Health:', data);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  checkHealth();
+</script>
+
+</body>
+</html>
