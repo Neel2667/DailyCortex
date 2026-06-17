@@ -1,6 +1,6 @@
 """Pydantic models for all JSON schemas in the pipeline."""
 from pydantic import BaseModel, Field
-from typing import Literal, Optional, Any
+from typing import Literal, Optional, Any, List
 from enum import Enum
 
 # ============== ENUMS ==============
@@ -65,6 +65,15 @@ class TransitionType(str, Enum):
     motion_blur = "motion_blur"
     dissolve_glow = "dissolve_glow"
 
+class HookRole(str, Enum):
+    """The narrative role of a scene within the hook cadence system."""
+    tease = "tease"           # Opens a curiosity loop
+    escalation = "escalation"  # Builds tension toward a payoff
+    payoff = "payoff"         # Closes a curiosity loop (dopamine release)
+    rest = "rest"             # Lets viewer breathe between loops
+    callback = "callback"     # References an earlier hook (memory loop)
+    bridge = "bridge"         # Connects two chapters/loops
+
 # ============== REQUESTS ==============
 
 class GenerateRequest(BaseModel):
@@ -105,6 +114,45 @@ class ThemeManifest(BaseModel):
     motion_language: MotionLanguage
     archetype_weights: dict[str, float] = Field(default_factory=dict)
 
+# ============== HOOK CADENCE ==============
+
+class Keyframe(BaseModel):
+    """An internal visual micro-event within a scene (3-4 per scene)."""
+    at_sec: float = Field(..., description="Timestamp within the scene (0 = scene start)")
+    visual_action: str = Field(..., description="The visual action: text_slam, data_enter, overlay_pulse, counter_tick, comparison_reveal, particle_burst, color_shift, zoom_in, zoom_out, icon_appear, line_draw, split_open, fade_swap")
+    element: str = Field(..., description="The visual element identifier this keyframe acts on")
+    description: Optional[str] = Field(default=None, description="Human-readable description for debugging")
+
+class MicroHook(BaseModel):
+    """A micro-curiosity gap within a scene (every 15-30 seconds)."""
+    at_sec: float = Field(..., description="Absolute video timestamp")
+    line: str = Field(..., description="The exact hook line from the narration")
+    visual_snap: str = Field(..., description="The visual action that creates the snap: text_color_shift, split_screen_compare, counter_slow_build, pulse_burst, text_zoom_in, glitch_flash, overlay_swap, camera_pan")
+
+class VisualTension(BaseModel):
+    """Which scenes build tension and which pay off for this open loop."""
+    tease_scene: str = Field(..., description="scene_id that opens the loop")
+    escalation_scenes: List[str] = Field(default_factory=list, description="scene_ids that build tension")
+    payoff_scene: str = Field(..., description="scene_id that closes the loop")
+
+class OpenLoop(BaseModel):
+    """A curiosity gap that spans multiple scenes (medium: 2-3 min, big: 3-4 min)."""
+    loop_id: str = Field(..., description="Unique identifier: L1, L2, ...")
+    tease_line: str = Field(..., description="The exact question/promise that opens the loop")
+    tease_at_sec: float = Field(..., description="Absolute timestamp where loop opens")
+    payoff_line: str = Field(..., description="The exact answer/revelation that closes the loop")
+    payoff_at_sec: float = Field(..., description="Absolute timestamp where loop closes")
+    visual_tension: VisualTension = Field(..., description="Scene mapping for visual escalation")
+    intensity_arc: List[float] = Field(default_factory=list, description="Visual intensity values (0.0-1.0) at each escalation scene, rising toward 1.0 at payoff")
+    loop_type: str = Field(default="medium", description="micro | medium | big")
+
+class HookCadence(BaseModel):
+    """The complete curiosity architecture of the video."""
+    open_loops: List[OpenLoop] = Field(..., description="5-7 nested curiosity gaps")
+    micro_hooks: List[MicroHook] = Field(default_factory=list, description="15-30 second micro-hooks")
+    callback_reference: Optional[str] = Field(default=None, description="The intro hook line referenced at the end (memory loop)")
+    tension_peak_sec: float = Field(default=0.0, description="Absolute timestamp of the maximum visual intensity (big payoff)")
+
 # ============== DIRECTOR'S CUT ==============
 
 class TextOverlay(BaseModel):
@@ -117,6 +165,12 @@ class Scene(BaseModel):
     scene_id: str
     start_sec: float
     duration_sec: float
+    
+    # Hook Cadence Fields (NEW - Phase 1)
+    hook_role: HookRole = Field(default=HookRole.bridge, description="The narrative role of this scene in the hook architecture")
+    visual_intensity: float = Field(default=0.5, ge=0.0, le=1.0, description="How visually intense this scene should be (0.0=rest, 0.8=tease, 1.0=payoff)")
+    keyframes: List[Keyframe] = Field(default_factory=list, description="3-4 internal visual micro-events within this scene")
+    
     narration: str
     mood: Mood
     pacing: Pacing
@@ -141,6 +195,7 @@ class DirectorCut(BaseModel):
     target_duration_sec: int
     mood_arc: list[Mood]
     theme_manifest: ThemeManifest
+    hook_cadence: HookCadence = Field(..., description="The curiosity architecture that drives retention")
     scenes: list[Scene]
 
 # ============== AUDIO / BEAT ==============
@@ -150,6 +205,7 @@ class BeatGrid(BaseModel):
     beats: list[float]
     onsets: list[float]
     energy: list[float]
+    downbeats: list[float] = Field(default_factory=list, description="Strong beat positions for major transitions")
 
 class AudioMixPlan(BaseModel):
     narration_path: str
