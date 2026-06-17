@@ -1,0 +1,12 @@
+{
+  "componentId": "QuestionBomb",
+  "props": {
+    "question": "Why do you procrastinate?",
+    "accent_words": ["procrastinate"],
+    "particle_burst": true
+  },
+  "durationMs": 3000,
+  "width": 1920,
+  "height": 1080,
+  "fps": 30
+}

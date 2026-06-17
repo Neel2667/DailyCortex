@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "render-clip": "node scripts/render-clip.js"
+    "render-clip": "node scripts/render-clip.js",
+    "test-capture": "bash scripts/test-capture.sh",
+    "validate-output": "bash scripts/validate-output.sh"
   },
   "dependencies": {
     "react": "^18.2.0",
