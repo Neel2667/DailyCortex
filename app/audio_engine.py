@@ -369,7 +369,7 @@ async def mix_full_audio(
         if music_duration < total_duration:
             # Loop music to fit
             loops_needed = int(total_duration / music_duration) + 1
-            loop_filter = "",".join([f"[0:a]" for _ in range(loops_needed)])
+            loop_filter = ",".join([f"[0:a]" for _ in range(loops_needed)])
             # Simpler approach: use concat demuxer
             music_list = settings.cache_dir / "music_loop_list.txt"
             music_list.write_text(

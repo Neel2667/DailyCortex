@@ -36,6 +36,7 @@ from app.models import (
     ThemeManifest,
     JobStatus,
     SceneAssetManifest,
+    Scene,
 )
 
 # Module imports (will be wired in the pipeline)

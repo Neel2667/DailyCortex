@@ -498,7 +498,8 @@ class QualityValidator:
 
         # ASL check: if avg keyframe density suggests ASL
         total_keyframes = sum(len(s.keyframes) for s in self.dc.scenes)
-        asl = total_duration / total_keyframes if total_keyframes > 0 else 0
+        total_dur = sum(s.duration_sec for s in self.dc.scenes)
+        asl = total_dur / total_keyframes if total_keyframes > 0 else 0
         self.metrics["estimated_asl"] = asl
 
         if asl > 10:
