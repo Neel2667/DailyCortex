@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORTEX RENDER — Look & Feel Prototype</title>
+<style>
+  :root {
+    --bg: #030305;
+    --surface: #0a0a0f;
+    --glass: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.08);
+    --text: #e8e8e8;
+    --text-dim: #6b6b7b;
+    --accent: #00f0ff;
+    --accent-glow: rgba(0,240,255,0.15);
+    --gold: #ffd166;
+    --gold-glow: rgba(255,209,102,0.12);
+    --mood-curious: #00f0ff;
+    --mood-tense: #ff6b6b;
+    --mood-revelatory: #ffd166;
+    --mood-calm: #9b5de5;
+    --grade-cool: #1a2a3a;
+    --grade-warm: #2a1a0a;
+    --grade-neural: #0a2a1a;
+    --grade-mono: #1a1a1a;
+    --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  /* Cinematic grain overlay */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+
+  /* Stage transitions */
+  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.8s var(--ease-out-expo); padding: 2rem; }
+  .stage.active { opacity: 1; pointer-events: all; }
+
+  /* Typography */
+  h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 200; letter-spacing: -0.03em; line-height: 1.1; }
+  h2 { font-size: clamp(1.2rem, 2vw, 1.8rem); font-weight: 400; letter-spacing: 0.02em; color: var(--text-dim); }
+  .mono { font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.5rem; }
+
+  /* Buttons */
+  .btn {
+    position: relative; padding: 1rem 2.5rem; background: transparent; border: 1px solid var(--border);
+    color: var(--text); font-family: inherit; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; overflow: hidden; transition: all 0.4s var(--ease-spring);
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: 0 0 30px var(--accent-glow); color: var(--accent); }
+  .btn::before {
+    content: ''; position: absolute; inset: 0; background: var(--accent); transform: translateY(100%); transition: transform 0.4s var(--ease-spring); z-index: -1;
+  }
+  .btn:hover::before { transform: translateY(0); }
+  .btn:hover { color: var(--bg); }
+
+  /* Inputs */
+  .input-wrap { position: relative; width: min(100%, 600px); margin-top: 2rem; }
+  .input-wrap input {
+    width: 100%; padding: 1.2rem 1.5rem; background: var(--glass); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--text); font-size: 1rem; font-family: inherit; outline: none; transition: all 0.3s ease;
+  }
+  .input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .input-wrap .input-glow {
+    position: absolute; inset: -1px; border-radius: 4px; background: linear-gradient(90deg, var(--accent), transparent, var(--accent));
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; filter: blur(8px); z-index: -1;
+  }
+  .input-wrap input:focus ~ .input-glow { opacity: 0.4; }
+
+  /* Neural Network Background Animation */
+  .neural-bg { position: fixed; inset: 0; z-index: 0; opacity: 0.6; }
+  .neural-bg svg { width: 100%; height: 100%; }
+  .neural-node { fill: none; stroke: var(--accent); stroke-width: 0.5; opacity: 0.3; }
+  .neural-line { stroke: var(--accent); stroke-width: 0.3; opacity: 0.15; }
+  .neural-pulse { fill: var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+  @keyframes pulse-node { 0%,100%{opacity:0.2} 50%{opacity:1} }
+  .np1 { animation: pulse-node 3s ease-in-out infinite; }
+  .np2 { animation: pulse-node 3s ease-in-out 1s infinite; }
+  .np3 { animation: pulse-node 3s ease-in-out 2s infinite; }
+  .np4 { animation: pulse-node 4s ease-in-out 0.5s infinite; }
+  .np5 { animation: pulse-node 4s ease-in-out 2.5s infinite; }
+
+  /* Processing Stage */
+  .processing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; width: min(100%, 1100px); align-items: center; }
+  .script-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 2rem;
+    font-family: 'SF Mono', monospace; font-size: 0.8rem; line-height: 1.6; color: var(--text-dim); max-height: 400px; overflow: hidden; position: relative;
+  }
+  .script-panel::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(to bottom, transparent, var(--surface)); pointer-events: none; }
+  .script-line { opacity: 0; transform: translateY(10px); animation: line-in 0.5s var(--ease-out-expo) forwards; }
+  @keyframes line-in { to { opacity: 1; transform: translateY(0); } }
+
+  /* Progress steps */
+  .steps { display: flex; gap: 2rem; margin-top: 3rem; }
+  .step { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; opacity: 0.3; transition: opacity 0.5s; }
+  .step.active { opacity: 1; }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .step-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* Director's Cut Timeline */
+  .timeline-container { width: min(100%, 1200px); overflow-x: auto; padding: 1rem 0; }
+  .timeline { display: flex; gap: 0.5rem; align-items: stretch; min-width: max-content; }
+  .scene-card {
+    position: relative; width: 180px; min-height: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; cursor: pointer; transition: all 0.4s var(--ease-spring); overflow: hidden;
+  }
+  .scene-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .scene-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 0.4s var(--ease-spring);
+  }
+  .scene-card:hover::before { transform: scaleX(1); }
+  .scene-id { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.1em; }
+  .scene-time { font-size: 0.75rem; color: var(--accent); font-family: monospace; }
+  .scene-mood { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid; }
+  .mood-curious { color: var(--mood-curious); border-color: var(--mood-curious); background: rgba(0,240,255,0.05); }
+  .mood-tense { color: var(--mood-tense); border-color: var(--mood-tense); background: rgba(255,107,107,0.05); }
+  .mood-revelatory { color: var(--mood-revelatory); border-color: var(--mood-revelatory); background: rgba(255,209,102,0.05); }
+  .mood-calm { color: var(--mood-calm); border-color: var(--mood-calm); background: rgba(155,93,229,0.05); }
+  .transition-arrow { display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 0.8rem; opacity: 0.5; }
+  .color-swatch { width: 100%; height: 24px; border-radius: 3px; position: relative; overflow: hidden; border: 1px solid var(--border); }
+  .swatch-cool { background: linear-gradient(90deg, #0f1f2f, #1a3a5a); }
+  .swatch-warm { background: linear-gradient(90deg, #2a1a0a, #5a3a1a); }
+  .swatch-neural { background: linear-gradient(90deg, #0a2a1a, #1a4a2a); }
+  .swatch-mono { background: linear-gradient(90deg, #1a1a1a, #3a3a3a); }
+  .swatch-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); }
+
+  /* Scene Preview Viewport */
+  .preview-stage { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2rem; width: min(100%, 1200px); align-items: start; }
+  .viewport-wrap { position: relative; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  .viewport-bg {
+    position: absolute; inset: 0; background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%230a1a2a"/%3E%3Cstop offset="100%25" style="stop-color:%230a0a1a"/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="1920" height="1080" fill="url(%23g)"/%3E%3Ccircle cx="200" cy="300" r="150" fill="%2300f0ff" opacity="0.03"/%3E%3Ccircle cx="1600" cy="800" r="200" fill="%239b5de5" opacity="0.03"/%3E%3Ccircle cx="900" cy="500" r="100" fill="%23ffd166" opacity="0.02"/%3E%3C/svg%3E') center/cover;
+    animation: kenburns 20s ease-in-out infinite alternate;
+  }
+  @keyframes kenburns { 0% { transform: scale(1) translate(0,0); } 100% { transform: scale(1.08) translate(-2%, -1%); } }
+
+  /* Neural overlay SVG inside viewport */
+  .neural-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+  .neural-overlay svg { width: 100%; height: 100%; }
+  .overlay-node { fill: var(--accent); opacity: 0; animation: overlay-pulse 2s ease-in-out infinite; }
+  .on1 { animation-delay: 0s; }
+  .on2 { animation-delay: 0.4s; }
+  .on3 { animation-delay: 0.8s; }
+  .on4 { animation-delay: 1.2s; }
+  .on5 { animation-delay: 1.6s; }
+  @keyframes overlay-pulse { 0%,100%{opacity:0} 50%{opacity:0.6} }
+  .overlay-line { stroke: var(--accent); stroke-width: 1; opacity: 0; animation: line-fade 2s ease-in-out infinite; }
+  .ol1 { animation-delay: 0.2s; }
+  .ol2 { animation-delay: 0.6s; }
+  .ol3 { animation-delay: 1.0s; }
+  @keyframes line-fade { 0%,100%{opacity:0} 50%{opacity:0.3} }
+
+  /* Text overlay in viewport */
+  .viewport-text {
+    position: absolute; bottom: 12%; left: 8%; z-index: 3; font-size: clamp(1.2rem, 2.5vw, 2.2rem); font-weight: 300; letter-spacing: -0.02em;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8); max-width: 80%;
+  }
+  .text-line { display: block; overflow: hidden; }
+  .text-line span { display: block; transform: translateY(100%); animation: text-rise 1s var(--ease-out-expo) forwards; }
+  .tl1 span { animation-delay: 0.3s; }
+  .tl2 span { animation-delay: 0.6s; }
+  .tl3 span { animation-delay: 0.9s; }
+  @keyframes text-rise { to { transform: translateY(0); } }
+
+  /* Color grade overlay */
+  .grade-overlay {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none; mix-blend-mode: overlay; opacity: 0.35;
+    background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(155,93,229,0.1)); animation: grade-shift 8s ease-in-out infinite alternate;
+  }
+  @keyframes grade-shift { 0%{opacity:0.25} 100%{opacity:0.45} }
+
+  /* Beat indicator */
+  .beat-ring {
+    position: absolute; bottom: 1.5rem; right: 1.5rem; z-index: 5; width: 40px; height: 40px; border-radius: 50%;
+    border: 2px solid var(--accent); opacity: 0.8; animation: beat-pulse 0.94s ease-in-out infinite;
+  }
+  .beat-ring::after {
+    content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 1px solid var(--accent); opacity: 0; animation: beat-ripple 0.94s ease-out infinite;
+  }
+  @keyframes beat-pulse { 0%,100%{transform:scale(1); opacity:0.6} 50%{transform:scale(1.15); opacity:1} }
+  @keyframes beat-ripple { 0%{transform:scale(1); opacity:0.6} 100%{transform:scale(1.6); opacity:0} }
+  .beat-label { position: absolute; bottom: 0.5rem; right: 4rem; font-size: 0.55rem; letter-spacing: 0.1em; color: var(--accent); opacity: 0.7; }
+
+  /* Scene metadata panel */
+  .meta-panel { display: flex; flex-direction: column; gap: 1.5rem; }
+  .meta-block { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.2rem; }
+  .meta-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+  .meta-row:last-child { border: none; }
+  .meta-key { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+  .meta-val { font-size: 0.8rem; color: var(--text); font-weight: 500; }
+  .meta-tag { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.65rem; border: 1px solid var(--border); color: var(--text-dim); }
+  .meta-tag.accent { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+  .waveform { height: 40px; display: flex; align-items: center; gap: 2px; opacity: 0.6; }
+  .wave-bar { width: 3px; background: var(--accent); border-radius: 2px; animation: wave-dance 0.94s ease-in-out infinite alternate; }
+  @keyframes wave-dance { 0%{height:10%} 100%{height:100%} }
+
+  /* Final player */
+  .player-stage { width: min(100%, 900px); }
+  .player-viewport { position: relative; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+  .player-controls { display: flex; flex-direction: column; gap: 1rem; }
+  .progress-track { position: relative; height: 4px; background: var(--surface); border-radius: 2px; overflow: visible; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); width: 0%; border-radius: 2px; animation: progress-grow 8s linear forwards; position: relative; }
+  .progress-fill::after { content: ''; position: absolute; right: -6px; top: -4px; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 12px var(--gold); }
+  @keyframes progress-grow { to { width: 100%; } }
+  .scene-markers { position: relative; height: 12px; margin-top: 4px; }
+  .marker { position: absolute; top: 0; width: 2px; height: 100%; background: rgba(255,255,255,0.2); transition: background 0.3s; }
+  .marker:hover { background: var(--accent); }
+  .marker-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 0.5rem; color: var(--text-dim); opacity: 0; transition: opacity 0.3s; }
+  .marker:hover .marker-label { opacity: 1; }
+  .control-row { display: flex; justify-content: space-between; align-items: center; }
+  .control-left { display: flex; gap: 1rem; align-items: center; }
+  .control-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; font-size: 0.8rem; }
+  .control-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+  .time-display { font-family: monospace; font-size: 0.8rem; color: var(--text-dim); }
+  .quality-badge { padding: 0.3rem 0.8rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.05em; }
+
+  /* Navigation dots between stages */
+  .nav-dots { position: fixed; right: 2rem; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 1rem; z-index: 100; }
+  .nav-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--border); background: transparent; cursor: pointer; transition: all 0.3s; }
+  .nav-dot.active { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .processing-grid { grid-template-columns: 1fr; }
+    .preview-stage { grid-template-columns: 1fr; }
+    .timeline { flex-direction: column; min-width: auto; }
+    .scene-card { width: 100%; }
+  }
+
+  /* Utility animations */
+  .fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp 0.8s var(--ease-out-expo) forwards; }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.3s; }
+  .delay-4 { animation-delay: 0.4s; }
+  .delay-5 { animation-delay: 0.5s; }
+
+  .title-reveal { overflow: hidden; }
+  .title-reveal span { display: inline-block; transform: translateY(100%); animation: titleRise 1s var(--ease-out-expo) forwards; }
+  @keyframes titleRise { to { transform: translateY(0); } }
+
+  /* Loading shimmer */
+  .shimmer { position: relative; overflow: hidden; }
+  .shimmer::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent); transform: translateX(-100%); animation: shimmer 2s infinite; }
+  @keyframes shimmer { to { transform: translateX(100%); } }
+</style>
+</head>
+<body>
+
+<!-- Fixed Neural Background -->
+<div class="neural-bg">
+  <svg viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <!-- Grid of nodes -->
+    <g class="neural-grid">
+      <circle cx="400" cy="300" r="3" class="neural-pulse np1" filter="url(#glow)"/>
+      <circle cx="600" cy="200" r="2" class="neural-pulse np2" filter="url(#glow)"/>
+      <circle cx="800" cy="350" r="4" class="neural-pulse np3" filter="url(#glow)"/>
+      <circle cx="1200" cy="250" r="2" class="neural-pulse np4" filter="url(#glow)"/>
+      <circle cx="1400" cy="400" r="3" class="neural-pulse np5" filter="url(#glow)"/>
+      <circle cx="1000" cy="600" r="2" class="neural-pulse np1" filter="url(#glow)"/>
+      <circle cx="300" cy="700" r="3" class="neural-pulse np2" filter="url(#glow)"/>
+      <circle cx="1600" cy="650" r="2" class="neural-pulse np3" filter="url(#glow)"/>
+      <circle cx="500" cy="850" r="4" class="neural-pulse np4" filter="url(#glow)"/>
+      <circle cx="1300" cy="800" r="3" class="neural-pulse np5" filter="url(#glow)"/>
+      <circle cx="900" cy="900" r="2" class="neural-pulse np1" filter="url(#glow)"/>
+      <!-- Lines -->
+      <line x1="400" y1="300" x2="600" y2="200" class="neural-line"/>
+      <line x1="600" y1="200" x2="800" y2="350" class="neural-line"/>
+      <line x1="800" y1="350" x2="1200" y2="250" class="neural-line"/>
+      <line x1="1200" y1="250" x2="1400" y2="400" class="neural-line"/>
+      <line x1="400" y1="300" x2="1000" y2="600" class="neural-line"/>
+      <line x1="800" y1="350" x2="1000" y2="600" class="neural-line"/>
+      <line x1="300" y1="700" x2="500" y2="850" class="neural-line"/>
+      <line x1="500" y1="850" x2="900" y2="900" class="neural-line"/>
+      <line x1="1000" y1="600" x2="1300" y2="800" class="neural-line"/>
+      <line x1="1200" y1="250" x2="1600" y2="650" class="neural-line"/>
+      <line x1="1400" y1="400" x2="1600" y2="650" class="neural-line"/>
+      <line x1="600" y1="200" x2="300" y2="700" class="neural-line"/>
+    </g>
+  </svg>
+</div>
+
+<!-- Navigation Dots -->
+<div class="nav-dots">
+  <div class="nav-dot active" onclick="goTo(0)"></div>
+  <div class="nav-dot" onclick="goTo(1)"></div>
+  <div class="nav-dot" onclick="goTo(2)"></div>
+  <div class="nav-dot" onclick="goTo(3)"></div>
+  <div class="nav-dot" onclick="goTo(4)"></div>
+  <div class="nav-dot" onclick="goTo(5)"></div>
+</div>
+
+<!-- Stage 0: Landing -->
+<div class="stage active" id="stage-0">
+  <div class="mono fade-up delay-1" style="color:var(--accent); margin-bottom:1rem;">Generative Cinematic Engine</div>
+  <h1 class="title-reveal" style="text-align:center; max-width:800px;">
+    <span>CORTEX</span> <span style="color:var(--text-dim); font-weight:300;">RENDER</span>
+  </h1>
+  <h2 class="fade-up delay-2" style="text-align:center; max-width:600px; margin-top:1rem; line-height:1.5;">
+    An autonomous director that crafts 8–10 minute brain hack documentaries from scratch. No templates. No slideshows. Only cinematic motion.
+  </h2>
+  <div class="fade-up delay-3" style="margin-top:2.5rem; display:flex; gap:1rem; flex-wrap:wrap; justify-content:center;">
+    <span class="mono" style="padding:0.5rem 1rem; border:1px solid var(--border); border-radius:4px; color:var(--text-dim);">Groq Director</span>
+    <span class="mono" style="padding:0.5rem 1rem; border:1px solid var(--border); border-radius:4px; color:var(--text-dim);">Edge TTS</span>
+    <span class="mono" style="padding:0.5rem 1rem; border:1px solid var(--border); border-radius:4px; color:var(--text-dim);">Framer Motion</span>
+    <span class="mono" style="padding:0.5rem 1rem; border:1px solid var(--border); border-radius:4px; color:var(--text-dim);">FFmpeg</span>
+    <span class="mono" style="padding:0.5rem 1rem; border:1px solid var(--border); border-radius:4px; color:var(--text-dim);">Pexels</span>
+  </div>
+  <button class="btn fade-up delay-4" style="margin-top:3rem;" onclick="goTo(1)">Enter the Engine</button>
+</div>
+
+<!-- Stage 1: Input -->
+<div class="stage" id="stage-1">
+  <div class="mono fade-up delay-1" style="color:var(--accent); margin-bottom:0.5rem;">Topic Ingestion</div>
+  <h1 class="fade-up delay-2" style="text-align:center; max-width:700px;">What brain hack shall we explore?</h1>
+  <div class="input-wrap fade-up delay-3">
+    <input type="text" id="topic-input" placeholder="e.g., The Dopamine Fasting Protocol" value="The Dopamine Detox Protocol" onkeydown="if(event.key==='Enter') goTo(2)">
+    <div class="input-glow"></div>
+  </div>
+  <div class="fade-up delay-4" style="margin-top:1.5rem; display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center; max-width:600px;">
+    <span class="meta-tag" style="cursor:pointer;" onclick="setTopic('The Neuroscience of Flow States')">Flow States</span>
+    <span class="meta-tag" style="cursor:pointer;" onclick="setTopic('Cognitive Load Theory Explained')">Cognitive Load</span>
+    <span class="meta-tag" style="cursor:pointer;" onclick="setTopic('The Default Mode Network Hack')">DMN Hack</span>
+    <span class="meta-tag" style="cursor:pointer;" onclick="setTopic('Binaural Beats & Brainwaves')">Binaural Beats</span>
+  </div>
+  <button class="btn fade-up delay-4" style="margin-top:2.5rem;" onclick="goTo(2)">Generate Director's Cut</button>
+</div>
+
+<!-- Stage 2: Processing -->
+<div class="stage" id="stage-2">
+  <div class="processing-grid">
+    <div>
+      <div class="mono" style="color:var(--accent); margin-bottom:1rem;">Director's Brain Active</div>
+      <h1 style="font-size:2rem; margin-bottom:1.5rem;">Generating script<br>& cut decisions...</h1>
+      <div class="steps" id="steps">
+        <div class="step active"><div class="step-dot"></div><div class="step-label">Research</div></div>
+        <div class="step"><div class="step-dot"></div><div class="step-label">Script</div></div>
+        <div class="step"><div class="step-dot"></div><div class="step-label">Scenes</div></div>
+        <div class="step"><div class="step-dot"></div><div class="step-label">Mood</div></div>
+        <div class="step"><div class="step-dot"></div><div class="step-label">Finalize</div></div>
+      </div>
+      <div style="margin-top:2rem; font-size:0.75rem; color:var(--text-dim); max-width:300px; line-height:1.6;" id="status-log">
+        Initializing generative pipeline...<br>
+        Groq API connected.<br>
+        Two-pass inference enabled.
+      </div>
+    </div>
+    <div class="script-panel" id="script-panel">
+      <div style="color:var(--accent); margin-bottom:1rem; font-size:0.65rem; letter-spacing:0.1em;">RAW SCRIPT OUTPUT — PASS 1</div>
+      <div id="script-lines"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Stage 3: Director's Cut Timeline -->
+<div class="stage" id="stage-3">
+  <div style="width:min(100%,1200px); margin-bottom:1.5rem;">
+    <div class="mono" style="color:var(--accent); margin-bottom:0.5rem;">Director's Cut JSON</div>
+    <h1 style="font-size:1.8rem; margin-bottom:0.5rem;">The Dopamine Detox Protocol</h1>
+    <div style="display:flex; gap:2rem; font-size:0.75rem; color:var(--text-dim); margin-bottom:1.5rem;">
+      <span>Target: <strong style="color:var(--text);">9:42</strong></span>
+      <span>Scenes: <strong style="color:var(--text);">12</strong></span>
+      <span>Mood Arc: <strong style="color:var(--text);">Curious → Tense → Revelatory → Calm</strong></span>
+      <span>BPM: <strong style="color:var(--text);">128</strong></span>
+    </div>
+  </div>
+  <div class="timeline-container">
+    <div class="timeline" id="timeline"></div>
+  </div>
+  <div style="margin-top:2rem; display:flex; gap:1rem;">
+    <button class="btn" onclick="goTo(4)">Preview Scene 04</button>
+    <button class="btn" onclick="goTo(5)" style="border-color:var(--gold); color:var(--gold);">Export Final</button>
+  </div>
+</div>
+
+<!-- Stage 4: Scene Preview -->
+<div class="stage" id="stage-4">
+  <div class="preview-stage">
+    <div class="viewport-wrap" id="viewport">
+      <div class="viewport-bg"></div>
+      <div class="grade-overlay"></div>
+      <svg class="neural-overlay" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+        <circle cx="960" cy="540" r="8" class="overlay-node on1" filter="url(#glow)"/>
+        <circle cx="860" cy="500" r="5" class="overlay-node on2" filter="url(#glow)"/>
+        <circle cx="1060" cy="500" r="5" class="overlay-node on3" filter="url(#glow)"/>
+        <circle cx="960" cy="640" r="6" class="overlay-node on4" filter="url(#glow)"/>
+        <circle cx="760" cy="540" r="4" class="overlay-node on5" filter="url(#glow)"/>
+        <line x1="860" y1="500" x2="960" y2="540" class="overlay-line ol1"/>
+        <line x1="1060" y1="500" x2="960" y2="540" class="overlay-line ol2"/>
+        <line x1="960" y1="540" x2="960" y2="640" class="overlay-line ol3"/>
+        <line x1="960" y1="540" x2="760" y2="540" class="overlay-line ol1"/>
+      </svg>
+      <div class="viewport-text">
+        <div class="text-line tl1"><span>THE DOPAMINE</span></div>
+        <div class="text-line tl2"><span>DETOX PROTOCOL</span></div>
+        <div class="text-line tl3"><span style="font-size:0.5em; color:var(--accent); text-transform:uppercase; letter-spacing:0.2em;">Scene 04 — The Neurochemical Reboot</span></div>
+      </div>
+      <div class="beat-ring"></div>
+      <div class="beat-label">BPM 128</div>
+    </div>
+
+    <div class="meta-panel">
+      <div class="meta-block">
+        <div class="label">Scene Metadata</div>
+        <div class="meta-row"><span class="meta-key">Scene ID</span><span class="meta-val">S04</span></div>
+        <div class="meta-row"><span class="meta-key">Duration</span><span class="meta-val">0:42</span></div>
+        <div class="meta-row"><span class="meta-key">Mood</span><span class="meta-val" style="color:var(--mood-tense);">TENSE</span></div>
+        <div class="meta-row"><span class="meta-key">Pacing</span><span class="meta-val">Fast</span></div>
+        <div class="meta-row"><span class="meta-key">Transition</span><span class="meta-val">Cross-zoom</span></div>
+      </div>
+      <div class="meta-block">
+        <div class="label">Visual Stack</div>
+        <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem;">
+            <div style="width:8px; height:8px; border-radius:50%; background:#333; border:1px solid var(--border);"></div>
+            <span style="color:var(--text-dim);">Layer 1</span>
+            <span>Pexels B-roll (Neural lab)</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem;">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent);"></div>
+            <span style="color:var(--text-dim);">Layer 2</span>
+            <span>Framer Motion: Neural Pulse</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem;">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--gold); box-shadow:0 0 6px var(--gold-glow);"></div>
+            <span style="color:var(--text-dim);">Layer 3</span>
+            <span>Title Overlay (spring reveal)</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem;">
+            <div style="width:8px; height:8px; border-radius:50%; background:var(--mood-calm);"></div>
+            <span style="color:var(--text-dim);">Grade</span>
+            <span>Cool Blue + Neural tint</span>
+          </div>
+        </div>
+      </div>
+      <div class="meta-block">
+        <div class="label">Audio Reactive</div>
+        <div class="waveform" id="waveform"></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.6rem; color:var(--text-dim); margin-top:0.5rem;">
+          <span>Narration (ducked)</span>
+          <span>Music (-24dB)</span>
+          <span>SFX (beat hits)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:2rem; display:flex; gap:1rem;">
+    <button class="btn" onclick="goTo(3)">← Back to Timeline</button>
+    <button class="btn" onclick="goTo(5)">Export Final</button>
+  </div>
+</div>
+
+<!-- Stage 5: Final Export -->
+<div class="stage" id="stage-5">
+  <div class="player-stage">
+    <div class="player-viewport">
+      <div class="viewport-bg" style="animation-duration:15s;"></div>
+      <div class="grade-overlay" style="background:linear-gradient(135deg, rgba(255,209,102,0.1), rgba(0,240,255,0.1)); opacity:0.3;"></div>
+      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:5;">
+        <div style="text-align:center;">
+          <div class="mono" style="color:var(--accent); margin-bottom:1rem; font-size:0.7rem; letter-spacing:0.2em;">CORTEX RENDER — MASTER</div>
+          <h1 style="font-size:clamp(1.5rem, 3vw, 2.5rem); font-weight:300;">The Dopamine Detox Protocol</h1>
+          <div style="margin-top:1.5rem; font-size:0.75rem; color:var(--text-dim);">1080p • 30fps • H.264 • -14 LUFS</div>
+        </div>
+      </div>
+      <div class="beat-ring" style="animation-duration:1.2s;"></div>
+    </div>
+
+    <div class="player-controls">
+      <div class="progress-track">
+        <div class="progress-fill"></div>
+      </div>
+      <div class="scene-markers">
+        <div class="marker" style="left:8%"><div class="marker-label">S01</div></div>
+        <div class="marker" style="left:16%"><div class="marker-label">S02</div></div>
+        <div class="marker" style="left:24%"><div class="marker-label">S03</div></div>
+        <div class="marker" style="left:32%"><div class="marker-label">S04</div></div>
+        <div class="marker" style="left:40%"><div class="marker-label">S05</div></div>
+        <div class="marker" style="left:48%"><div class="marker-label">S06</div></div>
+        <div class="marker" style="left:56%"><div class="marker-label">S07</div></div>
+        <div class="marker" style="left:64%"><div class="marker-label">S08</div></div>
+        <div class="marker" style="left:72%"><div class="marker-label">S09</div></div>
+        <div class="marker" style="left:80%"><div class="marker-label">S10</div></div>
+        <div class="marker" style="left:88%"><div class="marker-label">S11</div></div>
+        <div class="marker" style="left:96%"><div class="marker-label">S12</div></div>
+      </div>
+      <div class="control-row">
+        <div class="control-left">
+          <button class="control-btn">▶</button>
+          <span class="time-display">00:00 / 09:42</span>
+        </div>
+        <div style="display:flex; gap:0.75rem; align-items:center;">
+          <span class="quality-badge">1920×1080</span>
+          <span class="quality-badge">30 FPS</span>
+          <span class="quality-badge">H.264</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:2rem; text-align:center;">
+      <div class="mono" style="color:var(--text-dim); margin-bottom:1rem;">Generation Summary</div>
+      <div style="display:flex; gap:1.5rem; justify-content:center; flex-wrap:wrap; font-size:0.75rem;">
+        <div style="text-align:center;"><div style="font-size:1.2rem; color:var(--accent);">12</div><div style="color:var(--text-dim); margin-top:0.25rem;">Scenes</div></div>
+        <div style="text-align:center;"><div style="font-size:1.2rem; color:var(--accent);">4</div><div style="color:var(--text-dim); margin-top:0.25rem;">Mograph Clips</div></div>
+        <div style="text-align:center;"><div style="font-size:1.2rem; color:var(--accent);">18</div><div style="color:var(--text-dim); margin-top:0.25rem;">Pexels Clips</div></div>
+        <div style="text-align:center;"><div style="font-size:1.2rem; color:var(--accent);">1</div><div style="color:var(--text-dim); margin-top:0.25rem;">Music Stem</div></div>
+        <div style="text-align:center;"><div style="font-size:1.2rem; color:var(--accent);">8</div><div style="color:var(--text-dim); margin-top:0.25rem;">SFX Events</div></div>
+      </div>
+    </div>
+
+    <div style="margin-top:2rem; display:flex; justify-content:center; gap:1rem;">
+      <button class="btn" onclick="goTo(0)">Start Over</button>
+      <button class="btn" style="border-color:var(--gold); color:var(--gold);" onclick="alert('In the real app, this would trigger the background FFmpeg render job.')">Download MP4</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentStage = 0;
+  const stages = ['stage-0','stage-1','stage-2','stage-3','stage-4','stage-5'];
+
+  function goTo(n) {
+    document.querySelectorAll('.stage').forEach((el,i)=>{
+      el.classList.toggle('active', i===n);
+    });
+    document.querySelectorAll('.nav-dot').forEach((d,i)=>{
+      d.classList.toggle('active', i===n);
+    });
+    currentStage = n;
+    if(n===2) startProcessing();
+    if(n===3) buildTimeline();
+    if(n===4) buildWaveform();
+  }
+
+  function setTopic(t) {
+    document.getElementById('topic-input').value = t;
+  }
+
+  // Processing simulation
+  function startProcessing() {
+    const steps = document.querySelectorAll('#steps .step');
+    const lines = document.getElementById('script-lines');
+    const log = document.getElementById('status-log');
+    const scriptSnippets = [
+      "In 2019, a Silicon Valley engineer discovered that our brains are flooded with cheap dopamine...",
+      "Social media notifications, sugary snacks, and endless scrolling create a hijacked reward circuit.",
+      "The protocol is simple: eliminate all super-stimuli for 24 hours. No phone. No junk food. No Netflix.",
+      "What happens next is extraordinary. The brain, starved of its easy fixes, begins to rewire.",
+      "Neuroscientists call this 'dopamine receptor downregulation reversal.'",
+      "Within 48 hours, previously mundane activities — reading, walking, conversation — regain their glow.",
+      "The Default Mode Network, normally silenced by constant input, sparks back to life...",
+      "This is not willpower. It is neurochemical restoration."
+    ];
+    lines.innerHTML = '';
+    steps.forEach(s=>s.classList.remove('active'));
+    steps[0].classList.add('active');
+
+    let stepIdx = 0;
+    let lineIdx = 0;
+    const stepInterval = setInterval(()=>{
+      stepIdx++;
+      if(stepIdx < steps.length) {
+        steps[stepIdx].classList.add('active');
+        if(stepIdx===1) log.innerHTML += '<br>Pass 1 complete. Script generated: 1,420 words.<br>Initiating Pass 2: Director\'s Cut JSON...';
+        if(stepIdx===3) log.innerHTML += '<br>Mood arc mapped: Curious → Tense → Revelatory → Calm.<br>Color grades assigned per scene.';
+        if(stepIdx===4) log.innerHTML += '<br>Beat grid generated at 128 BPM.<br>Transition pool randomized (no repeat within 30s).';
+      } else {
+        clearInterval(stepInterval);
+        setTimeout(()=>goTo(3), 1200);
+      }
+    }, 900);
+
+    const lineInterval = setInterval(()=>{
+      if(lineIdx < scriptSnippets.length) {
+        const div = document.createElement('div');
+        div.className = 'script-line';
+        div.style.animationDelay = '0s';
+        div.textContent = '> ' + scriptSnippets[lineIdx];
+        lines.appendChild(div);
+        lineIdx++;
+      } else {
+        clearInterval(lineInterval);
+      }
+    }, 400);
+  }
+
+  // Timeline builder
+  const scenes = [
+    {id:'S01', time:'0:00', dur:35, mood:'curious', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Intro Pulse', trans:'fade-in'},
+    {id:'S02', time:'0:35', dur:42, mood:'curious', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Neural Map', trans:'cross-zoom'},
+    {id:'S03', time:'1:17', dur:38, mood:'tense', grade:'swatch-mono', gradeLabel:'Mono', anim:'Dopamine Spike', trans:'wipe-right'},
+    {id:'S04', time:'1:55', dur:42, mood:'tense', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Neural Pulse', trans:'light-leak'},
+    {id:'S05', time:'2:37', dur:55, mood:'revelatory', grade:'swatch-neural', gradeLabel:'Neural', anim:'Receptor Flow', trans:'cross-zoom'},
+    {id:'S06', time:'3:32', dur:48, mood:'revelatory', grade:'swatch-warm', gradeLabel:'Warm Gold', anim:'Data Reveal', trans:'dissolve'},
+    {id:'S07', time:'4:20', dur:44, mood:'calm', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Brain Map', trans:'slide-left'},
+    {id:'S08', time:'5:04', dur:50, mood:'calm', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Synapse Loop', trans:'fade'},
+    {id:'S09', time:'5:54', dur:46, mood:'curious', grade:'swatch-neural', gradeLabel:'Neural', anim:'Network Grid', trans:'zoom-in'},
+    {id:'S10', time:'6:40', dur:52, mood:'revelatory', grade:'swatch-warm', gradeLabel:'Warm Gold', anim:'Final Pulse', trans:'cross-zoom'},
+    {id:'S11', time:'7:32', dur:40, mood:'calm', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Outro Drift', trans:'dissolve'},
+    {id:'S12', time:'8:12', dur:90, mood:'calm', grade:'swatch-cool', gradeLabel:'Cool Blue', anim:'Credits Roll', trans:'fade-out'},
+  ];
+
+  function buildTimeline() {
+    const tl = document.getElementById('timeline');
+    if(tl.children.length) return;
+    scenes.forEach((s,i)=>{
+      const card = document.createElement('div');
+      card.className = 'scene-card';
+      card.innerHTML = `
+        <div class="scene-id">${s.id}</div>
+        <div class="scene-time">${s.time} — ${s.dur}s</div>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+          <span class="scene-mood mood-${s.mood}">${s.mood}</span>
+        </div>
+        <div class="color-swatch ${s.grade}"><div class="swatch-label">${s.gradeLabel}</div></div>
+        <div style="font-size:0.7rem; color:var(--text-dim); margin-top:0.25rem;">${s.anim}</div>
+        <div style="font-size:0.6rem; color:var(--text-dim); opacity:0.5; margin-top:auto; padding-top:0.5rem; border-top:1px solid var(--border);">
+          ${s.trans}
+        </div>
+      `;
+      tl.appendChild(card);
+      if(i < scenes.length-1) {
+        const arrow = document.createElement('div');
+        arrow.className = 'transition-arrow';
+        arrow.innerHTML = '→';
+        tl.appendChild(arrow);
+      }
+    });
+  }
+
+  // Waveform builder
+  function buildWaveform() {
+    const wf = document.getElementById('waveform');
+    if(wf.children.length) return;
+    for(let i=0;i<40;i++) {
+      const bar = document.createElement('div');
+      bar.className = 'wave-bar';
+      bar.style.height = Math.max(10, Math.random()*100) + '%';
+      bar.style.animationDelay = (i * 0.05) + 's';
+      bar.style.animationDuration = (0.5 + Math.random()*0.5) + 's';
+      wf.appendChild(bar);
+    }
+  }
+</script>
+</body>
+</html>

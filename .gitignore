@@ -1,0 +1,20 @@
+# Secrets and environment
+.env
+.ssh/
+*.pem
+*.key
+__pycache__/
+*.pyc
+node_modules/
+.cache/
+.DS_Store
+
+# Build outputs
+mograph_factory/dist/
+mograph_factory/node_modules/
+*.egg-info/
+
+# Data and runtime (not part of source code)
+/cache/
+/renders/
+/data/
